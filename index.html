@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Smart Gas Safety — AI Control Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+
+:root{
+  --bg:#090c17; --bg2:#0d1225;
+  --panel:#121734; --panel-hi:#161c3d; --panel-line:#242c58;
+  --ink:#eef1ff; --ink-dim:#9aa3d6; --ink-faint:#5c6499;
+  --blue:#5b8def; --blue-dim:#2c3d78;
+  --green:#4ade80; --green-dim:#1e5a3d;
+  --yellow:#f6c453; --yellow-dim:#5c4a1a;
+  --orange:#ff9d47; --orange-dim:#5c3a1a;
+  --red:#ff5c6a; --red-dim:#5c1f28;
+  --radius:14px;
+  --safe-t:env(safe-area-inset-top,0px);
+  --safe-b:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;}
+html{scroll-padding-top:calc(var(--safe-t) + 100px); background:var(--bg);}
+body{
+  margin:0; min-height:100%;
+  background:radial-gradient(1200px 700px at 15% -10%, #16204a 0%, var(--bg) 55%), var(--bg);
+  color:var(--ink);
+  font-family:'Inter',ui-sans-serif,system-ui,-apple-system,sans-serif;
+  padding-bottom:calc(var(--safe-b) + 24px);
+  -webkit-font-smoothing:antialiased;
+}
+.display{font-family:'Space Grotesk',ui-sans-serif,system-ui,sans-serif;}
+a{color:inherit;}
+::selection{background:var(--blue-dim); color:var(--ink);}
+button{font-family:inherit;}
+
+.wrap{max-width:1360px; margin:0 auto; padding:0 22px;}
+
+/* ---------- Top bar (persistent) ---------- */
+.topbar-outer{
+  position:sticky; top:0; z-index:20;
+  background:rgba(9,12,23,.92); backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--panel-line);
+  padding-top:calc(var(--safe-t) + 14px);
+}
+.topbar{display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; padding-bottom:12px;}
+.brand{display:flex; align-items:center; gap:12px;}
+.brand__mark{
+  width:36px; height:36px; border-radius:10px; flex:none;
+  background:conic-gradient(from 220deg, var(--blue), var(--green), var(--yellow), var(--blue));
+  display:flex; align-items:center; justify-content:center; position:relative;
+}
+.brand__mark::before{content:"";position:absolute; inset:3px; border-radius:7px; background:var(--bg2);}
+.brand__mark svg{position:relative; width:18px; height:18px; z-index:1;}
+.brand__text h1{font-size:16px; margin:0; font-weight:600; letter-spacing:.2px;}
+.brand__text p{margin:1px 0 0; font-size:12px; color:var(--ink-dim);}
+
+.status-row{display:flex; gap:8px; flex-wrap:wrap;}
+.pill{
+  display:flex; align-items:center; gap:7px;
+  padding:6px 11px; border-radius:999px; font-size:12px; font-weight:600;
+  background:var(--panel); border:1px solid var(--panel-line); color:var(--ink-dim);
+  white-space:nowrap;
+}
+.pill .dot{width:7px; height:7px; border-radius:50%; background:var(--green); box-shadow:0 0 0 3px var(--green-dim);}
+.pill--warn{color:var(--yellow); border-color:var(--yellow-dim); background:#20200f;}
+.pill--warn .dot{background:var(--yellow); box-shadow:0 0 0 3px var(--yellow-dim);}
+.pill--off{color:var(--ink-faint); border-color:#3a3f66;}
+.pill--off .dot{background:#5c6499; box-shadow:0 0 0 3px #262c4d;}
+.pill--clock{font-variant-numeric:tabular-nums; color:var(--ink); background:var(--panel-hi);}
+.pill--clock .dot{display:none;}
+
+/* ---------- Tab nav ---------- */
+.tabnav{display:flex; gap:6px; overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:12px;}
+.tabnav::-webkit-scrollbar{display:none;}
+.tabbtn{
+  flex:none; background:transparent; border:1px solid var(--panel-line); color:var(--ink-dim);
+  padding:8px 15px; border-radius:10px; font-size:12.5px; font-weight:600; cursor:pointer;
+  white-space:nowrap; transition:background .15s ease, color .15s ease, border-color .15s ease;
+}
+.tabbtn:hover{color:var(--ink); border-color:var(--blue-dim);}
+.tabbtn.active{background:var(--blue); color:#06122b; border-color:var(--blue);}
+.tabbtn:focus-visible{outline:2px solid var(--blue); outline-offset:2px;}
+
+.tabpanel{display:none;}
+.tabpanel.active{display:block; animation:fadein .3s ease;}
+@keyframes fadein{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+
+/* ---------- Home hero ---------- */
+.hero{padding:28px 0 6px;}
+.eyebrow{font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--blue); font-weight:700; margin:0 0 10px;}
+.hero h2{font-family:'Space Grotesk'; font-size:clamp(22px,3.2vw,32px); font-weight:600; margin:0 0 10px; line-height:1.18; max-width:740px;}
+.hero-sub{color:var(--ink-dim); font-size:14.5px; max-width:560px; line-height:1.55; margin:0 0 22px;}
+
+.home-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:16px;}
+.summary-card{
+  text-align:left; background:var(--panel); border:1px solid var(--panel-line); border-radius:var(--radius);
+  padding:16px; cursor:pointer; color:var(--ink); display:flex; flex-direction:column; gap:8px;
+  transition:border-color .15s ease, transform .15s ease; width:100%;
+}
+.summary-card:hover{border-color:var(--blue-dim); transform:translateY(-2px);}
+.summary-card:focus-visible{outline:2px solid var(--blue); outline-offset:2px;}
+.summary-card__top{display:flex; justify-content:space-between; align-items:center;}
+.summary-card__label{font-size:11px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.03em; font-weight:700;}
+.summary-card__badge{font-size:10px; font-weight:700; padding:3px 8px; border-radius:6px; background:var(--panel-hi); color:var(--ink-dim);}
+.summary-card__value{font-family:'Space Grotesk'; font-size:27px; font-weight:600;}
+.summary-card__spark{width:100%; height:38px; display:block;}
+.summary-card__cta{font-size:11.5px; color:var(--blue); font-weight:600;}
+
+.home-secondary{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:16px;}
+
+/* ---------- Cards ---------- */
+.card{
+  background:var(--panel); border:1px solid var(--panel-line); border-radius:var(--radius);
+  padding:16px; display:flex; flex-direction:column; margin-bottom:14px;
+}
+.card__head{display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; gap:8px; flex-wrap:wrap;}
+.card__title{font-size:12.5px; font-weight:700; letter-spacing:.03em; color:var(--ink-dim); text-transform:uppercase;}
+.card__note{font-size:12.5px; color:var(--ink-dim); line-height:1.55; margin:0 0 10px;}
+.tag{font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:6px; letter-spacing:.03em;}
+.tag--rise{background:var(--orange-dim); color:var(--orange);}
+.tag--sim{background:#241a08; color:var(--yellow); font-weight:600;}
+
+.section-head{margin:26px 0 16px;}
+.section-head h2{font-family:'Space Grotesk'; font-size:22px; font-weight:600; margin:0 0 6px;}
+.section-head p{color:var(--ink-dim); font-size:13.5px; margin:0; max-width:640px; line-height:1.5;}
+
+.chartbox{position:relative; flex:1; min-height:190px;}
+.chartbox.tall{min-height:230px;}
+.chartbox.short{min-height:120px;}
+.chartbox svg{width:100%; height:100%; display:block;}
+.chart-caption{display:flex; justify-content:space-between; font-size:11px; color:var(--ink-faint); margin-top:8px; gap:10px; flex-wrap:wrap;}
+
+.stat-row{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:14px;}
+.stat{background:var(--panel-hi); border:1px solid var(--panel-line); border-radius:10px; padding:12px 14px;}
+.stat .l{font-size:10.5px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.03em; font-weight:700;}
+.stat .v{font-family:'Space Grotesk'; font-size:21px; font-weight:600; margin-top:5px;}
+.stat .v.small{font-size:15px;}
+
+.grid2{display:grid; grid-template-columns:1.1fr 1fr; gap:14px;}
+.gridEven{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+
+/* heatmap */
+.heat-grid{display:grid; grid-template-columns:repeat(8,1fr); gap:3px; flex:1; min-height:150px;}
+.heat-cell{border-radius:4px; position:relative; transition:background .8s ease;}
+.heat-cell .lab{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:9.5px; font-weight:700; color:#0a0e1b; opacity:0;}
+.heat-cell.has-lab .lab{opacity:1;}
+.heat-note{font-size:11px; color:var(--ink-faint); margin-top:9px;}
+
+/* why + health */
+.why-list{list-style:none; margin:0 0 14px; padding:0; display:flex; flex-direction:column; gap:9px;}
+.why-list li{font-size:12.5px; color:var(--ink); display:flex; gap:8px; line-height:1.4;}
+.why-list li::before{content:"\25aa"; color:var(--blue); flex:none;}
+.health-list{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px;}
+.health-list li{display:flex; align-items:center; justify-content:space-between; font-size:12.5px;}
+.health-list .name{display:flex; align-items:center; gap:8px; color:var(--ink-dim);}
+.health-dot{width:8px; height:8px; border-radius:50%; flex:none;}
+.health-status{font-weight:700; font-size:11.5px;}
+
+/* severity scale */
+.sevscale{position:relative; margin:6px 0 10px;}
+.sevscale-track{display:flex; height:14px; border-radius:8px; overflow:hidden;}
+.sevscale-track span{flex:1;}
+.sevscale-labels{display:flex; justify-content:space-between; margin-top:8px; font-size:11px; color:var(--ink-faint); font-weight:600;}
+.sevscale-labels span.active{color:var(--ink);}
+.sevscale-ptr{position:absolute; top:-6px; width:2px; height:26px; background:#fff; box-shadow:0 0 0 3px rgba(255,255,255,.15); transition:left .5s ease;}
+
+/* fingerprint legend chips */
+.chipset{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;}
+.chipset span{background:var(--panel-hi); border:1px solid var(--panel-line); color:var(--ink-dim); font-size:10.5px; font-weight:600; padding:6px 10px; border-radius:8px;}
+
+/* ---------- table ---------- */
+table{width:100%; border-collapse:collapse; font-size:12.5px;}
+th{text-align:left; font-size:10.5px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.03em; font-weight:700; padding-bottom:9px; border-bottom:1px solid var(--panel-line);}
+td{padding:9px 0; border-bottom:1px solid #1b2247; color:var(--ink-dim);}
+tr:last-child td{border-bottom:none;}
+td.sev{font-weight:700;}
+.sev--attention{color:var(--yellow);} .sev--warning{color:var(--orange);} .sev--critical{color:var(--red);}
+.rec{color:var(--green); font-weight:600;}
+
+/* ---------- replay ---------- */
+.replay-track{display:flex; gap:4px; margin-top:6px;}
+.replay-seg{flex:1; height:8px; border-radius:5px; background:#20264a; position:relative; overflow:hidden;}
+.replay-seg.done{background:var(--seg-color,var(--blue));}
+.replay-seg.now{background:var(--seg-color,var(--blue)); box-shadow:0 0 0 2px #fff inset;}
+.replay-labels{display:flex; justify-content:space-between; margin-top:8px;}
+.replay-labels span{font-size:10.5px; color:var(--ink-faint); flex:1; text-align:center;}
+.replay-labels span.active{color:var(--ink); font-weight:700;}
+.replay-btnrow{display:flex; align-items:center; gap:10px; margin-top:14px;}
+.playbtn{
+  width:40px; height:40px; border-radius:50%; border:none; cursor:pointer;
+  background:var(--blue); color:#06122b; display:flex; align-items:center; justify-content:center;
+  flex:none; transition:transform .15s ease;
+}
+.playbtn:hover{transform:scale(1.06);}
+.playbtn:active{transform:scale(.96);}
+.playbtn svg{width:16px;height:16px;}
+.replay-desc{font-size:12.5px; color:var(--ink-dim); line-height:1.45;}
+.replay-desc b{color:var(--ink); font-weight:600;}
+
+/* ---------- explorer ---------- */
+.explorer-controls{display:flex; gap:16px; flex-wrap:wrap; align-items:flex-end; margin-bottom:10px;}
+.explorer-field{display:flex; flex-direction:column; gap:5px;}
+.explorer-field label{font-size:10px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.04em; font-weight:700;}
+input[type=date], input[type=time]{
+  background:var(--panel-hi); border:1px solid var(--panel-line); color:var(--ink);
+  border-radius:8px; padding:8px 10px; font-family:inherit; font-size:13px; color-scheme:dark;
+}
+input[type=date]::-webkit-calendar-picker-indicator, input[type=time]::-webkit-calendar-picker-indicator{filter:invert(.75);}
+.explorer-quick{display:flex; gap:6px; flex-wrap:wrap;}
+.explorer-quick button{
+  background:var(--panel-hi); border:1px solid var(--panel-line); color:var(--ink-dim);
+  border-radius:8px; padding:8px 12px; font-size:12px; font-weight:600; cursor:pointer;
+}
+.explorer-quick button:hover{color:var(--ink); border-color:var(--blue);}
+.explorer-note{font-size:11.5px; color:var(--ink-faint); margin:0 0 14px; line-height:1.5;}
+.explorer-result{display:grid; grid-template-columns:repeat(6,1fr); gap:10px;}
+.eres{background:var(--panel-hi); border:1px solid var(--panel-line); border-radius:10px; padding:10px 12px;}
+.eres .l{font-size:10px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.03em; font-weight:700;}
+.eres .v{font-family:'Space Grotesk'; font-size:19px; font-weight:600; margin-top:4px;}
+
+/* ---------- alert ticker ---------- */
+.alertbar{
+  display:flex; align-items:center; gap:12px;
+  background:#241408; border:1px solid #5c3212; border-radius:var(--radius);
+  padding:13px 16px; font-size:13px; margin-top:6px;
+}
+.alertbar .ic{flex:none; width:20px; height:20px; color:var(--orange);}
+.alertbar b{color:var(--orange);}
+.alertbar .time{color:var(--ink-faint); font-variant-numeric:tabular-nums; margin-right:2px;}
+.footnote{text-align:center; font-size:11.5px; color:var(--ink-faint); margin-top:18px; line-height:1.6;}
+
+@media (max-width:1080px){
+  .home-grid{grid-template-columns:repeat(2,1fr);}
+  .home-secondary{grid-template-columns:1fr;}
+  .stat-row{grid-template-columns:repeat(2,1fr);}
+  .grid2, .gridEven{grid-template-columns:1fr;}
+}
+@media (max-width:560px){
+  .home-grid{grid-template-columns:1fr;}
+  .wrap{padding:0 14px;}
+  .explorer-result{grid-template-columns:repeat(2,1fr);}
+}
+@media (prefers-reduced-motion:reduce){
+  *{transition:none !important; animation:none !important;}
+}
+
+</style>
+</head>
+<body>
+
+<div class="topbar-outer">
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand">
+        <div class="brand__mark">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 2c3 3 6 6.5 6 10.5A6 6 0 0 1 6 12.5C6 8.5 9 5 12 2Z" stroke="#eef1ff" stroke-width="1.6" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="brand__text">
+          <h1>Smart Gas Safety</h1>
+          <p>AI Control Center &middot; Multi-sensor fusion</p>
+        </div>
+      </div>
+      <div class="status-row">
+        <span class="pill pill--clock" id="live-clock">&mdash;</span>
+        <span class="pill pill--off" id="arduino-pill" title="Waiting for an ESP32 / Arduino to connect over WiFi or USB"><span class="dot"></span>Arduino: not connected</span>
+        <span class="pill"><span class="dot"></span>AI engine active</span>
+        <span class="pill pill--warn"><span class="dot"></span>Sensor readings simulated</span>
+      </div>
+    </div>
+    <nav class="tabnav" role="tablist" aria-label="Dashboard sections">
+      <button class="tabbtn active" data-tab="home" role="tab" aria-selected="true">01 &middot; Home</button>
+      <button class="tabbtn" data-tab="gas" role="tab" aria-selected="false">02 &middot; Gas</button>
+      <button class="tabbtn" data-tab="temp" role="tab" aria-selected="false">03 &middot; Temperature</button>
+      <button class="tabbtn" data-tab="hum" role="tab" aria-selected="false">04 &middot; Humidity</button>
+      <button class="tabbtn" data-tab="air" role="tab" aria-selected="false">05 &middot; Air Quality</button>
+      <button class="tabbtn" data-tab="history" role="tab" aria-selected="false">06 &middot; History</button>
+    </nav>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- ===================== HOME ===================== -->
+  <section id="tab-home" class="tabpanel active" role="tabpanel">
+    <div class="hero">
+      <p class="eyebrow">Multi-sensor AI safety system</p>
+      <h2>Everything your gas safety system is seeing, right now.</h2>
+      <p class="hero-sub">One live feed, four dedicated sensor windows, and a full month of history you can scrub through down to the second.</p>
+    </div>
+
+    <div class="home-grid">
+      <button class="summary-card" data-tab="gas">
+        <div class="summary-card__top"><span class="summary-card__label">Gas level</span><span class="summary-card__badge" id="home-gas-badge">&mdash;</span></div>
+        <div class="summary-card__value" id="home-gas-value">&mdash;</div>
+        <svg class="summary-card__spark" viewBox="0 0 200 50" preserveAspectRatio="none"><path id="home-gas-path" fill="none" stroke="#5b8def" stroke-width="2.5"/></svg>
+        <span class="summary-card__cta">View gas details &rarr;</span>
+      </button>
+      <button class="summary-card" data-tab="temp">
+        <div class="summary-card__top"><span class="summary-card__label">Temperature</span><span class="summary-card__badge" id="home-temp-badge">&mdash;</span></div>
+        <div class="summary-card__value" id="home-temp-value">&mdash;</div>
+        <svg class="summary-card__spark" viewBox="0 0 200 50" preserveAspectRatio="none"><path id="home-temp-path" fill="none" stroke="#ff9d47" stroke-width="2.5"/></svg>
+        <span class="summary-card__cta">View temperature details &rarr;</span>
+      </button>
+      <button class="summary-card" data-tab="hum">
+        <div class="summary-card__top"><span class="summary-card__label">Humidity</span><span class="summary-card__badge" id="home-hum-badge">&mdash;</span></div>
+        <div class="summary-card__value" id="home-hum-value">&mdash;</div>
+        <svg class="summary-card__spark" viewBox="0 0 200 50" preserveAspectRatio="none"><path id="home-hum-path" fill="none" stroke="#5bc0de" stroke-width="2.5"/></svg>
+        <span class="summary-card__cta">View humidity details &rarr;</span>
+      </button>
+      <button class="summary-card" data-tab="air">
+        <div class="summary-card__top"><span class="summary-card__label">Air quality</span><span class="summary-card__badge" id="home-air-badge">&mdash;</span></div>
+        <div class="summary-card__value" id="home-air-value">&mdash;</div>
+        <svg class="summary-card__spark" viewBox="0 0 200 50" preserveAspectRatio="none"><path id="home-air-path" fill="none" stroke="#4ade80" stroke-width="2.5"/></svg>
+        <span class="summary-card__cta">View air quality details &rarr;</span>
+      </button>
+    </div>
+
+    <div class="home-secondary">
+      <div class="card" style="margin-bottom:0;">
+        <div class="card__head"><span class="card__title">Severity</span></div>
+        <div class="stat"><div class="l">Current classification</div><div class="v" id="home-sev">&mdash;</div></div>
+      </div>
+      <div class="card" style="margin-bottom:0;">
+        <div class="card__head"><span class="card__title">AI confidence</span></div>
+        <div class="stat"><div class="l">How sure the AI is</div><div class="v" id="home-conf">&mdash;</div></div>
+      </div>
+      <div class="card" style="margin-bottom:0;">
+        <div class="card__head"><span class="card__title">Latest event</span></div>
+        <div class="stat"><div class="l" id="home-latest-label">Loading&hellip;</div><div class="v small" id="home-latest-value">&mdash;</div></div>
+        <button class="explorer-quick" style="margin-top:10px; background:var(--panel-hi); border:1px solid var(--panel-line); color:var(--ink-dim); border-radius:8px; padding:8px 12px; font-size:12px; font-weight:600; cursor:pointer; width:100%;" onclick="switchTab('history')">Open history &amp; events &rarr;</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== GAS ===================== -->
+  <section id="tab-gas" class="tabpanel" role="tabpanel">
+    <div class="section-head">
+      <h2>Gas &mdash; deepest sensor view</h2>
+      <p>Live concentration, AI severity classification, fingerprinting, and multi-sensor localization.</p>
+    </div>
+
+    <div class="card">
+      <div class="card__head">
+        <span class="card__title">Gas concentration &middot; live</span>
+        <span class="tag tag--rise" id="trend-tag">&#9650; rising</span>
+      </div>
+      <div class="chartbox tall">
+        <svg viewBox="0 0 560 220" preserveAspectRatio="none" id="chart-svg">
+          <g id="gridlines"></g>
+          <path id="baseline-path" fill="none" stroke="#38406e" stroke-width="1.5" stroke-dasharray="5 5"/>
+          <path id="area-path" fill="url(#areaGrad)" stroke="none"/>
+          <path id="gas-path" fill="none" stroke="#5b8def" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle id="gas-dot" r="4.5" fill="#5b8def" stroke="#0a0e1b" stroke-width="2"/>
+          <defs>
+            <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#5b8def" stop-opacity="0.28"/>
+              <stop offset="100%" stop-color="#5b8def" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+      <div class="chart-caption"><span>Dashed line = learned baseline</span><span id="chart-trend-text">Analyzing trend&hellip;</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card__head"><span class="card__title">Severity classification</span></div>
+      <div class="sevscale">
+        <div class="sevscale-track">
+          <span style="background:var(--green)"></span><span style="background:var(--yellow)"></span><span style="background:var(--orange)"></span><span style="background:var(--red)"></span>
+        </div>
+        <div class="sevscale-ptr" id="sev-ptr" style="left:5%"></div>
+      </div>
+      <div class="sevscale-labels"><span id="sevlab-0">Normal</span><span id="sevlab-1">Attention</span><span id="sevlab-2">Warning</span><span id="sevlab-3">Critical</span></div>
+      <p class="card__note" style="margin-top:12px;">Classified from live concentration relative to the learned baseline &mdash; not a fixed single threshold.</p>
+    </div>
+
+    <div class="gridEven">
+      <div class="card">
+        <div class="card__head"><span class="card__title">Gas fingerprinting</span><span class="tag tag--sim">illustrative</span></div>
+        <p class="card__note">The AI reads the shape, slope and duration of a signal to recognise what kind of event is happening.</p>
+        <div class="chartbox short">
+          <svg viewBox="0 0 560 130" preserveAspectRatio="none" id="fp-svg">
+            <path d="M10 105 L 60 103 L 110 95 L 160 78 L 210 55 L 260 32 L 310 18 L 360 12 L 410 20 L 460 40 L 510 65 L 550 90" fill="none" stroke="#5b8def" stroke-width="2.5" stroke-linecap="round"/>
+            <path d="M10 105 L 60 104 L 110 100 L 155 60 L 175 20 L 195 15 L 230 50 L 280 85 L 340 100 L 400 106 L 460 108 L 550 108" fill="none" stroke="#ff5c6a" stroke-width="2.5" stroke-linecap="round"/>
+            <path d="M10 106 L 60 104 L 110 90 L 150 55 L 190 40 L 230 60 L 280 90 L 340 104 L 400 107 L 460 108 L 550 108" fill="none" stroke="#f6c453" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="chipset">
+          <span style="color:#5b8def">&mdash; Slow leak</span><span style="color:#ff5c6a">&mdash; Sudden burst</span><span style="color:#f6c453">&mdash; Brief transient</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card__head"><span class="card__title">Live gas heatmap &amp; localization</span></div>
+        <div class="heat-grid" id="heat-grid"></div>
+        <div class="heat-note">Sensor positions S1&ndash;S4 &middot; brighter = higher reading &middot; estimates the probable source zone</div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="card" style="margin-bottom:0;">
+        <div class="card__head"><span class="card__title">Why this alert?</span></div>
+        <ul class="why-list" id="why-list"></ul>
+      </div>
+      <div class="card" style="margin-bottom:0;">
+        <div class="card__head"><span class="card__title">Sensor health</span></div>
+        <ul class="health-list" id="health-list"></ul>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px;">
+      <div class="card__head"><span class="card__title">Last 24 hours &middot; reconstructed</span><span class="tag tag--sim">simulated</span></div>
+      <div class="chartbox short"><svg viewBox="0 0 560 120" preserveAspectRatio="none" id="gas24-svg"><path id="gas24-path" fill="none" stroke="#5b8def" stroke-width="2"/></svg></div>
+      <div class="chart-caption"><span>00:00 &rarr; now</span><span>Deterministic reconstruction &middot; will use real logs once ESP32 connects</span></div>
+    </div>
+  </section>
+
+  <!-- ===================== TEMPERATURE ===================== -->
+  <section id="tab-temp" class="tabpanel" role="tabpanel">
+    <div class="section-head">
+      <h2>Temperature &mdash; deepest sensor view</h2>
+      <p>Thermal context for AI sensor fusion &mdash; used to judge whether a gas reading is a genuine abnormal event.</p>
+    </div>
+    <div class="stat-row">
+      <div class="stat"><div class="l">Current</div><div class="v" id="temp-current">&mdash;</div></div>
+      <div class="stat"><div class="l">Vs baseline</div><div class="v" id="temp-delta">&mdash;</div></div>
+      <div class="stat"><div class="l">Recent min / max</div><div class="v small" id="temp-minmax">&mdash;</div></div>
+      <div class="stat"><div class="l">Category</div><div class="v small" id="temp-cat">&mdash;</div></div>
+    </div>
+    <div class="card">
+      <div class="card__head"><span class="card__title">Temperature &middot; live</span></div>
+      <div class="chartbox tall">
+        <svg viewBox="0 0 560 220" preserveAspectRatio="none" id="temp-chart-svg">
+          <path id="temp-baseline" fill="none" stroke="#38406e" stroke-width="1.5" stroke-dasharray="5 5"/>
+          <path id="temp-area" fill="url(#tempGrad)" stroke="none"/>
+          <path id="temp-path" fill="none" stroke="#ff9d47" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle id="temp-dot" r="4.5" fill="#ff9d47" stroke="#0a0e1b" stroke-width="2"/>
+          <defs><linearGradient id="tempGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ff9d47" stop-opacity="0.28"/><stop offset="100%" stop-color="#ff9d47" stop-opacity="0"/></linearGradient></defs>
+        </svg>
+      </div>
+      <div class="chart-caption"><span>Dashed line = learned baseline</span><span>&deg;C</span></div>
+    </div>
+    <div class="card">
+      <div class="card__head"><span class="card__title">Last 24 hours &middot; reconstructed</span><span class="tag tag--sim">simulated</span></div>
+      <div class="chartbox short"><svg viewBox="0 0 560 120" preserveAspectRatio="none" id="temp24-svg"><path id="temp24-path" fill="none" stroke="#ff9d47" stroke-width="2"/></svg></div>
+      <div class="chart-caption"><span>00:00 &rarr; now</span><span>Diurnal pattern &middot; deterministic reconstruction</span></div>
+    </div>
+  </section>
+
+  <!-- ===================== HUMIDITY ===================== -->
+  <section id="tab-hum" class="tabpanel" role="tabpanel">
+    <div class="section-head">
+      <h2>Humidity &mdash; deepest sensor view</h2>
+      <p>Moisture context for gas readings &mdash; cross-checked against gas and temperature during fusion.</p>
+    </div>
+    <div class="stat-row">
+      <div class="stat"><div class="l">Current</div><div class="v" id="hum-current">&mdash;</div></div>
+      <div class="stat"><div class="l">Vs baseline</div><div class="v" id="hum-delta">&mdash;</div></div>
+      <div class="stat"><div class="l">Recent min / max</div><div class="v small" id="hum-minmax">&mdash;</div></div>
+      <div class="stat"><div class="l">Category</div><div class="v small" id="hum-cat">&mdash;</div></div>
+    </div>
+    <div class="card">
+      <div class="card__head"><span class="card__title">Humidity &middot; live</span></div>
+      <div class="chartbox tall">
+        <svg viewBox="0 0 560 220" preserveAspectRatio="none" id="hum-chart-svg">
+          <path id="hum-baseline" fill="none" stroke="#38406e" stroke-width="1.5" stroke-dasharray="5 5"/>
+          <path id="hum-area" fill="url(#humGrad)" stroke="none"/>
+          <path id="hum-path" fill="none" stroke="#5bc0de" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle id="hum-dot" r="4.5" fill="#5bc0de" stroke="#0a0e1b" stroke-width="2"/>
+          <defs><linearGradient id="humGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#5bc0de" stop-opacity="0.28"/><stop offset="100%" stop-color="#5bc0de" stop-opacity="0"/></linearGradient></defs>
+        </svg>
+      </div>
+      <div class="chart-caption"><span>Dashed line = learned baseline</span><span>% relative humidity</span></div>
+    </div>
+    <div class="card">
+      <div class="card__head"><span class="card__title">Last 24 hours &middot; reconstructed</span><span class="tag tag--sim">simulated</span></div>
+      <div class="chartbox short"><svg viewBox="0 0 560 120" preserveAspectRatio="none" id="hum24-svg"><path id="hum24-path" fill="none" stroke="#5bc0de" stroke-width="2"/></svg></div>
+      <div class="chart-caption"><span>00:00 &rarr; now</span><span>Deterministic reconstruction</span></div>
+    </div>
+  </section>
+
+  <!-- ===================== AIR QUALITY ===================== -->
+  <section id="tab-air" class="tabpanel" role="tabpanel">
+    <div class="section-head">
+      <h2>Air quality &mdash; deepest sensor view</h2>
+      <p>Wider air-quality context feeding the same AI sensor fusion as gas, temperature and humidity.</p>
+    </div>
+    <div class="stat-row">
+      <div class="stat"><div class="l">Current index</div><div class="v" id="air-current">&mdash;</div></div>
+      <div class="stat"><div class="l">Vs baseline</div><div class="v" id="air-delta">&mdash;</div></div>
+      <div class="stat"><div class="l">Recent min / max</div><div class="v small" id="air-minmax">&mdash;</div></div>
+      <div class="stat"><div class="l">Category</div><div class="v small" id="air-cat">&mdash;</div></div>
+    </div>
+    <div class="card">
+      <div class="card__head"><span class="card__title">Air quality &middot; live</span></div>
+      <div class="chartbox tall">
+        <svg viewBox="0 0 560 220" preserveAspectRatio="none" id="air-chart-svg">
+          <path id="air-baseline" fill="none" stroke="#38406e" stroke-width="1.5" stroke-dasharray="5 5"/>
+          <path id="air-area" fill="url(#airGrad)" stroke="none"/>
+          <path id="air-path" fill="none" stroke="#4ade80" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle id="air-dot" r="4.5" fill="#4ade80" stroke="#0a0e1b" stroke-width="2"/>
+          <defs><linearGradient id="airGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#4ade80" stop-opacity="0.28"/><stop offset="100%" stop-color="#4ade80" stop-opacity="0"/></linearGradient></defs>
+        </svg>
+      </div>
+      <div class="chart-caption"><span>Dashed line = learned baseline</span><span>Air quality index</span></div>
+    </div>
+    <div class="card">
+      <div class="card__head"><span class="card__title">Last 24 hours &middot; reconstructed</span><span class="tag tag--sim">simulated</span></div>
+      <div class="chartbox short"><svg viewBox="0 0 560 120" preserveAspectRatio="none" id="air24-svg"><path id="air24-path" fill="none" stroke="#4ade80" stroke-width="2"/></svg></div>
+      <div class="chart-caption"><span>00:00 &rarr; now</span><span>Deterministic reconstruction</span></div>
+    </div>
+  </section>
+
+  <!-- ===================== HISTORY ===================== -->
+  <section id="tab-history" class="tabpanel" role="tabpanel">
+    <div class="section-head">
+      <h2>History &amp; events</h2>
+      <p>Every event this system has logged, a full replay of one event, and a scrubber across the last 30 days.</p>
+    </div>
+
+    <div class="grid2">
+      <div class="card" style="margin-bottom:0;">
+        <div class="card__head">
+          <span class="card__title">Event history</span>
+          <span class="tag tag--sim">30-day rolling log</span>
+        </div>
+        <table>
+          <thead><tr><th>Event</th><th>Peak</th><th>Duration</th><th>Severity</th><th>Recovery</th></tr></thead>
+          <tbody id="history-body"></tbody>
+        </table>
+      </div>
+
+      <div class="card" style="margin-bottom:0;">
+        <div class="card__head">
+          <span class="card__title">Event replay</span>
+          <span class="tag tag--sim">simulated event</span>
+        </div>
+        <div class="replay-track" id="replay-track"></div>
+        <div class="replay-labels" id="replay-labels"></div>
+        <div class="replay-btnrow">
+          <button class="playbtn" id="play-btn" aria-label="Play event replay">
+            <svg id="play-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          </button>
+          <p class="replay-desc" id="replay-desc">Press play to replay a full detected event, from normal baseline through to recovery.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px;">
+      <div class="card__head">
+        <span class="card__title">History explorer &middot; any date, hour, minute, second in the last month</span>
+        <span class="tag tag--sim" id="explorer-source-tag">simulated reconstruction</span>
+      </div>
+      <div class="explorer-controls">
+        <div class="explorer-field"><label for="exp-date">Date</label><input type="date" id="exp-date"></div>
+        <div class="explorer-field"><label for="exp-time">Time (h : m : s)</label><input type="time" id="exp-time" step="1"></div>
+        <div class="explorer-quick">
+          <button type="button" data-jump="now">Now</button>
+          <button type="button" data-jump="-1h">&minus; 1 hour</button>
+          <button type="button" data-jump="-1d">&minus; 1 day</button>
+          <button type="button" data-jump="-1w">&minus; 1 week</button>
+          <button type="button" data-jump="rand">Random moment</button>
+        </div>
+      </div>
+      <p class="explorer-note" id="explorer-note">Loading&hellip;</p>
+      <div class="explorer-result" id="explorer-result"></div>
+      <div class="chartbox short" style="margin-top:12px;">
+        <svg viewBox="0 0 560 120" preserveAspectRatio="none" id="explorer-chart">
+          <path id="explorer-path" fill="none" stroke="#5b8def" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle id="explorer-dot" r="4.5" fill="#f6c453" stroke="#0a0e1b" stroke-width="1.5"/>
+        </svg>
+      </div>
+      <div class="chart-caption"><span>Gas level, &plusmn;30 min around the selected moment</span><span>Same moment always reconstructs the same reading</span></div>
+    </div>
+  </section>
+
+  <div class="alertbar" id="alertbar">
+    <svg class="ic" viewBox="0 0 24 24" fill="none"><path d="M12 3 1 21h22L12 3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 10v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="18" r="1" fill="currentColor"/></svg>
+    <span><span class="time" id="alert-time">&mdash;</span><b id="alert-level">WARNING</b><span id="alert-text"> &mdash; rising gas trend, confidence high</span></span>
+  </div>
+
+  <p class="footnote">Live clock, dates and event history are real and stored in this browser for the last 30 days &middot; gas / temperature / humidity / air-quality readings and the heatmap are simulated until an ESP32 or Arduino is connected &middot; not a certified safety device</p>
+</div>
+
+<script>
+
+(function(){
+  "use strict";
+
+  /* ---------------- helpers ---------------- */
+  var $ = function(id){ return document.getElementById(id); };
+  var rand = function(a,b){ return a + Math.random()*(b-a); };
+  var clamp = function(v,a,b){ return Math.max(a, Math.min(b,v)); };
+  var pad2 = function(n){ return (n<10?'0':'')+n; };
+  var fmtTime = function(d){
+    var h = d.getHours(), m = d.getMinutes(), s = d.getSeconds();
+    var ap = h>=12?'PM':'AM'; h = h%12; if(h===0) h=12;
+    return h+':'+pad2(m)+':'+pad2(s)+' '+ap;
+  };
+  var fmtTimeShort = function(d){
+    var h = d.getHours(), m = d.getMinutes();
+    var ap = h>=12?'PM':'AM'; h = h%12; if(h===0) h=12;
+    return h+':'+pad2(m)+' '+ap;
+  };
+  var DAY_MS = 24*60*60*1000;
+  var WEEKDAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function fmtClock(d){ return WEEKDAYS[d.getDay()]+', '+MONTHS[d.getMonth()]+' '+d.getDate()+' '+d.getFullYear()+' \u00b7 '+fmtTime(d); }
+  function sameDay(a,b){ return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate(); }
+  function fmtEventDate(ts){
+    var d = new Date(ts), now = new Date();
+    var yest = new Date(now); yest.setDate(now.getDate()-1);
+    if(sameDay(d, now)) return 'Today, '+fmtTimeShort(d);
+    if(sameDay(d, yest)) return 'Yesterday, '+fmtTimeShort(d);
+    return MONTHS[d.getMonth()]+' '+d.getDate()+', '+fmtTimeShort(d);
+  }
+  function fmtDuration(ms){
+    var totalSec = Math.max(1, Math.round(ms/1000));
+    if(totalSec < 60) return totalSec+' sec';
+    var min = Math.floor(totalSec/60), sec = totalSec%60;
+    return min+' min'+(sec? ' '+sec+' sec' : '');
+  }
+  function updateClock(){ var el = $('live-clock'); if(el) el.textContent = fmtClock(new Date()); }
+
+  /* ---------------- generic chart drawing ---------------- */
+  function drawChart(opts){
+    var W = opts.W||560, H = opts.H||220, pad = opts.pad||8;
+    var vals = opts.values;
+    var allVals = vals.concat(opts.baselineValue!=null ? [opts.baselineValue] : []);
+    var pad2v = opts.pad2!=null ? opts.pad2 : 12;
+    var max = opts.max!=null ? opts.max : Math.max.apply(null, allVals) + pad2v;
+    var min = opts.min!=null ? opts.min : Math.min.apply(null, allVals) - pad2v;
+    if(max-min < 1){ max += 5; min -= 5; }
+    var n = vals.length, xStep = (W-2*pad)/(n-1);
+    var yFor = function(v){ return H-pad-((v-min)/(max-min))*(H-2*pad); };
+    var d = '';
+    for(var i=0;i<n;i++){ var x=pad+i*xStep, y=yFor(vals[i]); d += (i===0?'M':'L')+x.toFixed(1)+' '+y.toFixed(1)+' '; }
+    opts.path.setAttribute('d', d);
+    if(opts.area){
+      var ad = d + 'L '+(pad+(n-1)*xStep).toFixed(1)+' '+(H-pad)+' L '+pad+' '+(H-pad)+' Z';
+      opts.area.setAttribute('d', ad);
+    }
+    if(opts.dot){
+      var lx = pad+(n-1)*xStep, ly = yFor(vals[n-1]);
+      opts.dot.setAttribute('cx', lx.toFixed(1)); opts.dot.setAttribute('cy', ly.toFixed(1));
+    }
+    if(opts.baseline && opts.baselineValue!=null){
+      var by = yFor(opts.baselineValue);
+      opts.baseline.setAttribute('d', 'M '+pad+' '+by.toFixed(1)+' L '+(W-pad)+' '+by.toFixed(1));
+    }
+  }
+
+  /* ---------------- state ---------------- */
+  var N = 40;
+  function seedArr(base, amp, period){
+    var arr = [];
+    for(var i=0;i<N;i++) arr.push(base + Math.sin(i/period)*amp + rand(-amp*0.3,amp*0.3));
+    return arr;
+  }
+  var gasHistory  = seedArr(210, 4, 4);
+  var tempHistory = seedArr(26.8, 0.6, 6);
+  var humHistory  = seedArr(57, 1.5, 5);
+  var airHistory  = seedArr(118, 6, 5);
+
+  var BASE_GAS = 210, BASE_TEMP = 26.2, BASE_HUM = 55, BASE_AIR = 100;
+  var confidence = 82;
+  var sensors = [
+    {id:'S1', x:1, y:1, level:0.5, status:'ok'},
+    {id:'S2', x:6, y:1, level:0.55, status:'ok'},
+    {id:'S3', x:1, y:3, level:0.18, status:'ok'},
+    {id:'S4', x:6, y:3, level:0.3, status:'check'}
+  ];
+  var severityLevels = [
+    {name:'Normal', color:'#4ade80'},
+    {name:'Attention', color:'#f6c453'},
+    {name:'Warning', color:'#ff9d47'},
+    {name:'Critical', color:'#ff5c6a'}
+  ];
+  function severityFor(gas){
+    if(gas < 260) return 0;
+    if(gas < 340) return 1;
+    if(gas < 430) return 2;
+    return 3;
+  }
+
+  /* ---------------- tab navigation ---------------- */
+  var TABS = ['home','gas','temp','hum','air','history'];
+  function switchTab(id){
+    if(TABS.indexOf(id) < 0) id = 'home';
+    Array.prototype.forEach.call(document.querySelectorAll('.tabpanel'), function(p){
+      p.classList.toggle('active', p.id === 'tab-'+id);
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.tabbtn'), function(b){
+      var is = b.getAttribute('data-tab') === id;
+      b.classList.toggle('active', is);
+      b.setAttribute('aria-selected', is ? 'true' : 'false');
+    });
+    try{ history_pushHash(id); }catch(e){}
+    window.scrollTo(0,0);
+  }
+  function history_pushHash(id){
+    if(window.location.hash.replace('#','') !== id) window.location.hash = id;
+  }
+  window.switchTab = switchTab;
+
+  function initTabs(){
+    Array.prototype.forEach.call(document.querySelectorAll('.tabbtn'), function(b){
+      b.addEventListener('click', function(){ switchTab(b.getAttribute('data-tab')); });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.summary-card'), function(b){
+      b.addEventListener('click', function(){ switchTab(b.getAttribute('data-tab')); });
+    });
+    window.addEventListener('hashchange', function(){
+      switchTab(window.location.hash.replace('#','') || 'home');
+    });
+    var initial = window.location.hash.replace('#','');
+    if(TABS.indexOf(initial) >= 0) switchTab(initial);
+  }
+
+  /* ---------------- KPI + chart update ---------------- */
+  function stepSeries(){
+    var lastGas = gasHistory[gasHistory.length-1];
+    var driftGas = Math.sin(Date.now()/9000) * 1.3;
+    gasHistory.push(clamp(lastGas + driftGas + rand(-3.2,3.6), 190, 480));
+    if(gasHistory.length > N) gasHistory.shift();
+
+    var lastTemp = tempHistory[tempHistory.length-1];
+    tempHistory.push(clamp(lastTemp + rand(-0.15,0.18), 22, 34));
+    if(tempHistory.length > N) tempHistory.shift();
+
+    var lastHum = humHistory[humHistory.length-1];
+    humHistory.push(clamp(lastHum + rand(-0.6,0.6), 35, 75));
+    if(humHistory.length > N) humHistory.shift();
+
+    var lastAir = airHistory[airHistory.length-1];
+    airHistory.push(clamp(lastAir + rand(-2.5,3), 60, 260));
+    if(airHistory.length > N) airHistory.shift();
+  }
+
+  function trendDirection(arr){
+    var recent = arr.slice(-8);
+    var slope = recent[recent.length-1] - recent[0];
+    if(slope > (arr===gasHistory?6:0.8)) return 'rising';
+    if(slope < (arr===gasHistory?-6:-0.8)) return 'falling';
+    return 'stable';
+  }
+  function minMax(arr){
+    return { min: Math.min.apply(null, arr), max: Math.max.apply(null, arr) };
+  }
+  function tempCategory(t){
+    if(t < 24) return 'Cool';
+    if(t < 29) return 'Comfortable';
+    if(t < 33) return 'Warm';
+    return 'Hot';
+  }
+  function humCategory(h){
+    if(h < 40) return 'Dry';
+    if(h < 60) return 'Comfortable';
+    if(h < 70) return 'Humid';
+    return 'Very humid';
+  }
+  function airCategory(a){
+    if(a < 100) return 'Good';
+    if(a < 150) return 'Moderate';
+    if(a < 200) return 'Poor';
+    return 'Severe';
+  }
+  function airColor(a){
+    if(a < 100) return 'var(--green)';
+    if(a < 150) return 'var(--yellow)';
+    if(a < 200) return 'var(--orange)';
+    return 'var(--red)';
+  }
+
+  function renderGasTab(gas, dir){
+    var svg = $('chart-svg');
+    drawChart({ path:$('gas-path'), area:$('area-path'), dot:$('gas-dot'), baseline:$('baseline-path'),
+      values: gasHistory, baselineValue: BASE_GAS, W:560, H:220, pad:8 });
+    var g = $('gridlines');
+    if(g && !g.dataset.built){
+      var gl = '';
+      for(var r=1;r<4;r++){ var gy = 220/4*r; gl += '<line x1="0" y1="'+gy+'" x2="560" y2="'+gy+'" stroke="#1c2348" stroke-width="1"/>'; }
+      g.innerHTML = gl; g.dataset.built = '1';
+    }
+    var arrow = dir==='rising' ? '\u25b2' : dir==='falling' ? '\u25bc' : '\u25ac';
+    $('trend-tag').textContent = arrow+' '+dir;
+    $('trend-tag').style.background = dir==='rising' ? 'var(--orange-dim)' : dir==='falling' ? 'var(--blue-dim)' : '#232a55';
+    $('trend-tag').style.color = dir==='rising' ? 'var(--orange)' : dir==='falling' ? 'var(--blue)' : 'var(--ink-dim)';
+    var trendMsgs = {
+      rising: 'AI trend prediction: concentration climbing \u2014 projected to reach Warning range if unchanged.',
+      falling: 'AI trend prediction: concentration easing back toward baseline.',
+      stable: 'AI trend prediction: concentration holding steady near baseline.'
+    };
+    $('chart-trend-text').textContent = trendMsgs[dir];
+
+    var sevIdx = severityFor(gas);
+    var pct = clamp((gas-190)/(650-190),0,1)*100;
+    $('sev-ptr').style.left = pct+'%';
+    for(var i=0;i<4;i++){ $('sevlab-'+i).classList.toggle('active', i===sevIdx); }
+    renderWhy(sevIdx, dir);
+    renderHealth();
+    drawChart({ path:$('gas24-path'), values: reconstruct24('gas'), W:560, H:120, pad:6 });
+  }
+
+  function renderWhy(sevIdx, dir){
+    var items = [];
+    if(sevIdx===0){
+      items.push('All readings within learned baseline range');
+      items.push('No cross-sensor deviation detected');
+      items.push('Sensor fusion confidence '+Math.round(confidence)+'%');
+    } else {
+      items.push('Gas concentration '+dir+' over recent readings');
+      items.push('Temperature shifted from baseline ('+(tempHistory[tempHistory.length-1]-BASE_TEMP>=0?'+':'')+(tempHistory[tempHistory.length-1]-BASE_TEMP).toFixed(1)+'\u00b0C)');
+      items.push('Humidity & air quality reviewed for consistency');
+      items.push('Probable zone: near '+ (sensors.reduce(function(a,b){return a.level>b.level?a:b;}).id) );
+    }
+    $('why-list').innerHTML = items.map(function(t){ return '<li>'+t+'</li>'; }).join('');
+  }
+  function renderHealth(){
+    var names = {S1:'Gas sensor S1', S2:'Gas sensor S2', S3:'Gas sensor S3', S4:'Gas sensor S4'};
+    var html = sensors.map(function(s){
+      var ok = s.status==='ok';
+      var color = ok ? 'var(--green)' : 'var(--yellow)';
+      return '<li><span class="name"><span class="health-dot" style="background:'+color+'"></span>'+names[s.id]+'</span>'+
+             '<span class="health-status" style="color:'+color+'">'+(ok?'OK':'Check')+'</span></li>';
+    }).join('') + '<li><span class="name"><span class="health-dot" style="background:var(--green)"></span>Temp / Humidity</span><span class="health-status" style="color:var(--green)">OK</span></li>';
+    $('health-list').innerHTML = html;
+  }
+
+  function renderParamTab(prefix, arr, baseline, unit, catFn, dp){
+    var cur = arr[arr.length-1];
+    var mm = minMax(arr);
+    var delta = cur - baseline;
+    $(prefix+'-current').textContent = cur.toFixed(dp)+unit;
+    $(prefix+'-delta').textContent = (delta>=0?'+':'')+delta.toFixed(dp)+unit;
+    $(prefix+'-minmax').textContent = mm.min.toFixed(dp)+' / '+mm.max.toFixed(dp)+unit;
+    $(prefix+'-cat').textContent = catFn(cur);
+    if(prefix==='air') $(prefix+'-cat').style.color = airColor(cur);
+    drawChart({ path:$(prefix+'-path'), area:$(prefix+'-area'), dot:$(prefix+'-dot'), baseline:$(prefix+'-baseline'),
+      values: arr, baselineValue: baseline, W:560, H:220, pad:8, pad2: unit==='%'?6:(unit==='\u00b0C'?2:15) });
+    drawChart({ path:$(prefix+'24-path'), values: reconstruct24(prefix==='temp'?'temp':prefix==='hum'?'hum':'air'), W:560, H:120, pad:6 });
+  }
+
+  function reconstruct24(kind){
+    var now = Date.now();
+    var pts = [];
+    for(var t = now - 24*60*60*1000; t <= now; t += 30*60*1000){
+      var p = paramsAt(t);
+      pts.push(kind==='gas'?p.gas : kind==='temp'?p.temp : kind==='hum'?p.hum : p.air);
+    }
+    return pts;
+  }
+
+  function sparkPath(arr, W, H){
+    var min = Math.min.apply(null, arr), max = Math.max.apply(null, arr);
+    if(max-min < 1){ max+=2; min-=2; }
+    var n = arr.length, xStep = W/(n-1);
+    var d='';
+    for(var i=0;i<n;i++){
+      var x=i*xStep, y=H-((arr[i]-min)/(max-min))*H;
+      d += (i===0?'M':'L')+x.toFixed(1)+' '+y.toFixed(1)+' ';
+    }
+    return d;
+  }
+
+  function renderHome(gas, temp, hum, air, sevIdx){
+    $('home-gas-value').textContent = Math.round(gas);
+    $('home-temp-value').textContent = temp.toFixed(1)+'\u00b0C';
+    $('home-hum-value').textContent = Math.round(hum)+'%';
+    $('home-air-value').textContent = Math.round(air);
+    $('home-gas-badge').textContent = severityLevels[sevIdx].name;
+    $('home-gas-badge').style.color = severityLevels[sevIdx].color;
+    $('home-temp-badge').textContent = tempCategory(temp);
+    $('home-hum-badge').textContent = humCategory(hum);
+    $('home-air-badge').textContent = airCategory(air);
+    $('home-air-badge').style.color = airColor(air);
+    $('home-gas-path').setAttribute('d', sparkPath(gasHistory, 200, 44));
+    $('home-temp-path').setAttribute('d', sparkPath(tempHistory, 200, 44));
+    $('home-hum-path').setAttribute('d', sparkPath(humHistory, 200, 44));
+    $('home-air-path').setAttribute('d', sparkPath(airHistory, 200, 44));
+    $('home-sev').textContent = severityLevels[sevIdx].name;
+    $('home-sev').style.color = severityLevels[sevIdx].color;
+    $('home-conf').textContent = Math.round(confidence)+'%';
+    if(history.length){
+      var h = history[0];
+      var sevNames = {1:'Attention',2:'Warning',3:'Critical'};
+      $('home-latest-label').textContent = fmtEventDate(h.ts);
+      $('home-latest-value').textContent = sevNames[h.sevIdx]+' \u00b7 peak '+h.peak;
+    } else {
+      $('home-latest-label').textContent = 'No events yet';
+      $('home-latest-value').textContent = 'All clear';
+    }
+  }
+
+  function updateKPIs(){
+    var gas = gasHistory[gasHistory.length-1];
+    var temp = tempHistory[tempHistory.length-1];
+    var hum = humHistory[humHistory.length-1];
+    var air = airHistory[airHistory.length-1];
+    var dir = trendDirection(gasHistory);
+    var sevIdx = severityFor(gas);
+    confidence = clamp(confidence + rand(-2.5,2.5), 68, 97);
+
+    renderGasTab(gas, dir);
+    renderParamTab('temp', tempHistory, BASE_TEMP, '\u00b0C', tempCategory, 1);
+    renderParamTab('hum', humHistory, BASE_HUM, '%', humCategory, 0);
+    renderParamTab('air', airHistory, BASE_AIR, '', airCategory, 0);
+    renderHome(gas, temp, hum, air, sevIdx);
+    trackEventLifecycle(gas, sevIdx);
+    updateAlert(gas, sevIdx);
+  }
+
+  /* ---------------- heatmap ---------------- */
+  var heatCells = [];
+  function buildHeatGrid(){
+    var cols=8, rows=5;
+    var grid = $('heat-grid');
+    grid.innerHTML='';
+    heatCells = [];
+    for(var r=0;r<rows;r++){
+      for(var c=0;c<cols;c++){
+        var cell = document.createElement('div');
+        cell.className='heat-cell';
+        var sensor = sensors.find(function(s){ return s.x===c && s.y===r; });
+        if(sensor){
+          cell.classList.add('has-lab');
+          var lab = document.createElement('span');
+          lab.className='lab'; lab.textContent = sensor.id;
+          cell.appendChild(lab);
+        }
+        grid.appendChild(cell);
+        heatCells.push({el:cell, x:c, y:r});
+      }
+    }
+  }
+  function heatColor(v){
+    var stops = [[0,[43,66,120]],[0.32,[93,196,140]],[0.55,[246,196,83]],[0.78,[255,157,71]],[1,[255,92,106]]];
+    v = clamp(v,0,1);
+    for(var i=0;i<stops.length-1;i++){
+      var a=stops[i], b=stops[i+1];
+      if(v<=b[0]){
+        var t=(v-a[0])/(b[0]-a[0]);
+        var rgb = [0,1,2].map(function(k){ return Math.round(a[1][k] + (b[1][k]-a[1][k])*t); });
+        return 'rgb('+rgb.join(',')+')';
+      }
+    }
+    return 'rgb(255,92,106)';
+  }
+  function updateHeat(){
+    sensors.forEach(function(s){
+      s.level = clamp(s.level + rand(-0.04,0.045), 0.08, s.status==='check'? 0.5 : 1.0);
+    });
+    heatCells.forEach(function(cell){
+      var v = 0.03;
+      sensors.forEach(function(s){
+        var d2 = Math.pow(cell.x-s.x,2)+Math.pow(cell.y-s.y,2);
+        v = Math.max(v, s.level*Math.exp(-d2/6));
+      });
+      cell.el.style.background = heatColor(v);
+    });
+  }
+
+  /* ---------------- event history: real dates, persisted 30 days ---------------- */
+  var HISTORY_KEY = 'gasSafety.eventHistory.v1';
+  var storageOK = true;
+  function loadHistory(){
+    try{
+      var raw = localStorage.getItem(HISTORY_KEY);
+      if(raw){
+        var arr = JSON.parse(raw);
+        if(Array.isArray(arr) && arr.length) return arr;
+      }
+    }catch(e){ storageOK = false; }
+    return seedHistory();
+  }
+  function seedHistory(){
+    var now = Date.now();
+    var samples = [
+      {daysAgo: 2,  hour:14, peakSev:2, durMin:6,  recMin:9},
+      {daysAgo: 6,  hour:9,  peakSev:1, durMin:3,  recMin:4},
+      {daysAgo: 13, hour:21, peakSev:3, durMin:11, recMin:15},
+      {daysAgo: 20, hour:17, peakSev:1, durMin:4,  recMin:5},
+      {daysAgo: 27, hour:8,  peakSev:2, durMin:5,  recMin:7}
+    ];
+    var peakVals = {1:[240,300], 2:[320,420], 3:[430,650]};
+    var arr = samples.map(function(s){
+      var d = new Date(now - s.daysAgo*DAY_MS);
+      d.setHours(s.hour, Math.round(rand(0,59)), Math.round(rand(0,59)), 0);
+      var pv = peakVals[s.peakSev];
+      return { ts: d.getTime(), peak: Math.round(rand(pv[0], pv[1])), durMs: s.durMin*60000, recMs: s.recMin*60000, sevIdx: s.peakSev };
+    });
+    saveHistory(arr);
+    return arr;
+  }
+  function saveHistory(arr){ try{ localStorage.setItem(HISTORY_KEY, JSON.stringify(arr)); }catch(e){ storageOK = false; } }
+  function pruneHistory(arr){ var cutoff = Date.now() - 30*DAY_MS; return arr.filter(function(e){ return e.ts >= cutoff; }); }
+  var history = pruneHistory(loadHistory());
+  history.sort(function(a,b){ return b.ts - a.ts; });
+  var activeEvent = null;
+
+  function trackEventLifecycle(gas, sevIdx){
+    if(sevIdx > 0 && !activeEvent){
+      activeEvent = { startTs: Date.now(), peak: gas, sevIdx: sevIdx, peakTs: Date.now() };
+    } else if(sevIdx > 0 && activeEvent){
+      activeEvent.sevIdx = Math.max(activeEvent.sevIdx, sevIdx);
+      if(gas > activeEvent.peak){ activeEvent.peak = gas; activeEvent.peakTs = Date.now(); }
+    } else if(sevIdx === 0 && activeEvent){
+      var endTs = Date.now();
+      var durMs = endTs - activeEvent.startTs;
+      var recMs = Math.max(1000, endTs - activeEvent.peakTs);
+      history.unshift({ ts: activeEvent.startTs, peak: Math.round(activeEvent.peak), durMs: durMs, recMs: recMs, sevIdx: activeEvent.sevIdx });
+      history = pruneHistory(history);
+      saveHistory(history);
+      activeEvent = null;
+      renderHistory();
+    }
+  }
+  function renderHistory(){
+    var sevNames = {1:'Attention', 2:'Warning', 3:'Critical'};
+    var sevClass = {1:'sev--attention', 2:'sev--warning', 3:'sev--critical'};
+    var rows = history.slice(0, 8);
+    if(!rows.length){
+      $('history-body').innerHTML = '<tr><td colspan="5" style="color:var(--ink-faint)">No events recorded yet \u2014 this will fill in as readings cross Attention level.</td></tr>';
+      return;
+    }
+    $('history-body').innerHTML = rows.map(function(h){
+      return '<tr><td>'+fmtEventDate(h.ts)+'</td><td>'+h.peak+'</td><td>'+fmtDuration(h.durMs)+'</td>'+
+             '<td class="sev '+sevClass[h.sevIdx]+'">'+sevNames[h.sevIdx]+'</td>'+
+             '<td class="rec">Recovered in '+fmtDuration(h.recMs)+'</td></tr>';
+    }).join('');
+  }
+
+  /* ---------------- historical reconstruction for any past moment ---------------- */
+  function mulberry32(seed){
+    return function(){
+      seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+      var t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function paramsAt(ts){
+    var d = new Date(ts);
+    var hourFrac = d.getHours() + d.getMinutes()/60 + d.getSeconds()/3600;
+    var dayIdx = Math.floor(ts / DAY_MS);
+    var daySeed = mulberry32((dayIdx*2654435761) % 2147483647);
+    var dayTempOffset = (daySeed()-0.5)*3;
+    var dayHumOffset  = (daySeed()-0.5)*8;
+    var dayGasBase    = 200 + daySeed()*20;
+    var eventHour     = 5 + daySeed()*17;
+    var eventStrength = daySeed();
+    var fineSeed = mulberry32(Math.floor(ts/5000));
+    var jitter = fineSeed();
+    var temp = 24.5 + dayTempOffset + 4.2*Math.sin((hourFrac-9)/24*2*Math.PI) + (jitter-0.5)*0.6;
+    var hum  = clamp(58 + dayHumOffset - 10*Math.sin((hourFrac-9)/24*2*Math.PI) + (jitter-0.5)*2, 32, 82);
+    var air  = clamp(95 + dayHumOffset*1.4 + 28*Math.sin((hourFrac-14)/24*2*Math.PI) + (jitter-0.5)*10, 55, 260);
+    var gas = dayGasBase + (jitter-0.5)*6;
+    var distHours = Math.abs(hourFrac - eventHour);
+    if(distHours < 1.1 && eventStrength > 0.35){
+      var bump = 1 - distHours/1.1;
+      gas += bump*bump*(110 + eventStrength*380);
+    }
+    gas = clamp(gas, 190, 900);
+    var sensorsAt = ['S1','S2','S3','S4'].map(function(id,i){
+      var sFn = mulberry32(Math.floor(ts/5000) + i*97 + 11);
+      var lvl = clamp((gas-190)/500 + (sFn()-0.5)*0.16 + (i===1?0.07:0), 0.04, 1);
+      return {id:id, level:lvl};
+    });
+    return { ts: ts, gas: gas, temp: temp, hum: hum, air: air, sensors: sensorsAt, sevIdx: severityFor(gas),
+      confidence: clamp(72 + eventStrength*15 + (jitter-0.5)*8, 60, 98) };
+  }
+  var REALLOG_KEY = 'gasSafety.realLog.v1';
+  function getRealLog(){ try{ var raw = localStorage.getItem(REALLOG_KEY); return raw ? JSON.parse(raw) : []; }catch(e){ return []; } }
+  function findRealNear(ts, toleranceMs){
+    var log = getRealLog(), best = null, bestDiff = Infinity;
+    for(var i=0;i<log.length;i++){ var diff = Math.abs(log[i].ts - ts); if(diff < bestDiff){ bestDiff = diff; best = log[i]; } }
+    return (best && bestDiff <= toleranceMs) ? best : null;
+  }
+  window.logRealReading = function(reading){
+    var log = getRealLog();
+    reading.ts = reading.ts || Date.now();
+    log.push(reading);
+    var cutoff = Date.now() - 30*DAY_MS;
+    log = log.filter(function(r){ return r.ts >= cutoff; });
+    try{ localStorage.setItem(REALLOG_KEY, JSON.stringify(log)); }catch(e){}
+  };
+  function getReadingAt(ts){
+    var real = findRealNear(ts, 5000);
+    if(real){ real.source = 'real'; return real; }
+    var sim = paramsAt(ts);
+    sim.source = 'simulated';
+    return sim;
+  }
+
+  /* ---------------- History Explorer UI ---------------- */
+  function clampTs(ts){ var now = Date.now(); return Math.min(now, Math.max(now - 30*DAY_MS, ts)); }
+  function isoDate(d){ return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
+  function setExplorerInputs(ts){
+    var d = new Date(ts);
+    $('exp-date').value = isoDate(d);
+    $('exp-time').value = pad2(d.getHours())+':'+pad2(d.getMinutes())+':'+pad2(d.getSeconds());
+  }
+  function currentExplorerTs(){
+    var dv = $('exp-date').value, tv = $('exp-time').value;
+    if(!dv || !tv) return Date.now();
+    var p = dv.split('-').map(Number), t = tv.split(':').map(Number);
+    return new Date(p[0], p[1]-1, p[2], t[0]||0, t[1]||0, t[2]||0).getTime();
+  }
+  function renderExplorerResult(sample){
+    var sevNames = {0:'Normal',1:'Attention',2:'Warning',3:'Critical'};
+    var sevColors = {0:'#4ade80',1:'#f6c453',2:'#ff9d47',3:'#ff5c6a'};
+    var tag = $('explorer-source-tag');
+    if(sample.source === 'real'){
+      tag.textContent = 'live ESP32 reading';
+      tag.style.background = 'var(--green-dim)'; tag.style.color = 'var(--green)';
+      $('explorer-note').textContent = 'Real reading logged from the connected ESP32 at ' + fmtClock(new Date(sample.ts)) + '.';
+    } else {
+      tag.textContent = 'simulated reconstruction';
+      tag.style.background = '#241a08'; tag.style.color = 'var(--yellow)';
+      $('explorer-note').textContent = 'Simulated reconstruction for ' + fmtClock(new Date(sample.ts)) + ' \u2014 this exact moment always reconstructs the same reading, and will switch to the real logged value automatically once an ESP32 is connected.';
+    }
+    var sensorsHtml = sample.sensors.map(function(s){ return s.id + ': ' + Math.round(s.level*100) + '%'; }).join('  \u00b7  ');
+    $('explorer-result').innerHTML =
+      '<div class="eres"><div class="l">Gas level</div><div class="v">'+Math.round(sample.gas)+'</div></div>'+
+      '<div class="eres"><div class="l">Temperature</div><div class="v">'+sample.temp.toFixed(1)+'\u00b0C</div></div>'+
+      '<div class="eres"><div class="l">Humidity</div><div class="v">'+Math.round(sample.hum)+'%</div></div>'+
+      '<div class="eres"><div class="l">Air quality</div><div class="v">'+Math.round(sample.air)+'</div></div>'+
+      '<div class="eres"><div class="l">Severity</div><div class="v" style="color:'+sevColors[sample.sevIdx]+'">'+sevNames[sample.sevIdx]+'</div></div>'+
+      '<div class="eres"><div class="l">AI confidence</div><div class="v">'+Math.round(sample.confidence)+'%</div></div>'+
+      '<div class="eres" style="grid-column:1/-1"><div class="l">Sensor levels</div><div class="v" style="font-size:13px;font-family:Inter,sans-serif;">'+sensorsHtml+'</div></div>';
+  }
+  function renderExplorerChart(centerTs){
+    var W=560, H=120, pad=6, rangeMs=30*60*1000, stepMs=60*1000;
+    var pts = [];
+    for(var t=centerTs-rangeMs; t<=centerTs+rangeMs; t+=stepMs){ pts.push(getReadingAt(t).gas); }
+    drawChart({ path:$('explorer-path'), values: pts, W:W, H:H, pad:pad });
+    var min = Math.min.apply(null, pts), max = Math.max.apply(null, pts);
+    if(max-min<12){ max+=12; min-=12; }
+    var n = pts.length, xStep=(W-2*pad)/(n-1);
+    var yFor = function(v){ return H-pad-((v-min)/(max-min))*(H-2*pad); };
+    var mid = Math.floor(n/2);
+    $('explorer-dot').setAttribute('cx', (pad+mid*xStep).toFixed(1));
+    $('explorer-dot').setAttribute('cy', yFor(pts[mid]).toFixed(1));
+  }
+  function refreshExplorer(){
+    var ts = clampTs(currentExplorerTs());
+    setExplorerInputs(ts);
+    var sample = getReadingAt(ts);
+    renderExplorerResult(sample);
+    renderExplorerChart(ts);
+  }
+  function initExplorer(){
+    var now = new Date();
+    var minD = new Date(now.getTime() - 30*DAY_MS);
+    $('exp-date').min = isoDate(minD);
+    $('exp-date').max = isoDate(now);
+    setExplorerInputs(Date.now());
+    $('exp-date').addEventListener('change', refreshExplorer);
+    $('exp-time').addEventListener('change', refreshExplorer);
+    Array.prototype.forEach.call(document.querySelectorAll('.explorer-quick button'), function(btn){
+      btn.addEventListener('click', function(){
+        var jump = btn.getAttribute('data-jump');
+        var ts = currentExplorerTs();
+        if(jump==='now') ts = Date.now();
+        else if(jump==='-1h') ts -= 3600000;
+        else if(jump==='-1d') ts -= DAY_MS;
+        else if(jump==='-1w') ts -= 7*DAY_MS;
+        else if(jump==='rand') ts = Date.now() - Math.random()*30*DAY_MS;
+        setExplorerInputs(clampTs(ts));
+        refreshExplorer();
+      });
+    });
+    refreshExplorer();
+  }
+
+  /* ---------------- event replay ---------------- */
+  var stages = [
+    {name:'Normal', color:'#4ade80', desc:'Baseline learned across all sensors. Nothing unusual.'},
+    {name:'Rising', color:'#f6c453', desc:'Gas concentration begins trending upward beyond normal noise.'},
+    {name:'Detection', color:'#5b8def', desc:'AI anomaly detection flags the pattern as abnormal.'},
+    {name:'Alert', color:'#ff9d47', desc:'Severity and confidence are shown; the dashboard raises a Warning.'},
+    {name:'Peak', color:'#ff5c6a', desc:'Reading reaches its maximum for this event and is logged.'},
+    {name:'Recovery', color:'#4ade80', desc:'Reading tracked back down toward baseline; event closes.'}
+  ];
+  var replayIndex = -1, replayTimer = null;
+  function buildReplayUI(){
+    $('replay-track').innerHTML = stages.map(function(s,i){ return '<div class="replay-seg" id="seg-'+i+'" style="--seg-color:'+s.color+'"></div>'; }).join('');
+    $('replay-labels').innerHTML = stages.map(function(s,i){ return '<span id="lab-'+i+'">'+s.name+'</span>'; }).join('');
+  }
+  function setReplayStep(i){
+    stages.forEach(function(s,idx){
+      var seg = $('seg-'+idx), lab = $('lab-'+idx);
+      seg.classList.remove('done','now'); lab.classList.remove('active');
+      if(idx < i) seg.classList.add('done');
+      if(idx === i){ seg.classList.add('now'); lab.classList.add('active'); }
+    });
+    if(i>=0) $('replay-desc').innerHTML = '<b>'+stages[i].name+'.</b> '+stages[i].desc;
+  }
+  function playReplay(){
+    if(replayTimer) return;
+    replayIndex = 0; setReplayStep(replayIndex);
+    $('play-icon').innerHTML = '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>';
+    replayTimer = setInterval(function(){
+      replayIndex++;
+      if(replayIndex >= stages.length){ clearInterval(replayTimer); replayTimer=null; $('play-icon').innerHTML = '<path d="M8 5v14l11-7z"/>'; return; }
+      setReplayStep(replayIndex);
+    }, 1100);
+  }
+  function initReplay(){
+    $('play-btn').addEventListener('click', function(){
+      if(replayTimer){ clearInterval(replayTimer); replayTimer=null; $('play-icon').innerHTML = '<path d="M8 5v14l11-7z"/>'; return; }
+      playReplay();
+    });
+  }
+
+  /* ---------------- alert ticker ---------------- */
+  function updateAlert(gas, sevIdx){
+    var bar = $('alertbar');
+    $('alert-time').textContent = fmtTime(new Date()) + '   ';
+    if(sevIdx <= 1){
+      $('alert-level').textContent = sevIdx===0 ? 'NORMAL' : 'ATTENTION';
+      $('alert-text').textContent = sevIdx===0 ? ' \u2014 all readings within baseline' : ' \u2014 gas trending upward, monitoring closely';
+    } else if(sevIdx===2){
+      $('alert-level').textContent = 'WARNING';
+      $('alert-text').textContent = ' \u2014 rising gas trend, confidence ' + Math.round(confidence) + '%';
+    } else {
+      $('alert-level').textContent = 'CRITICAL';
+      $('alert-text').textContent = ' \u2014 sustained high reading, immediate attention recommended';
+    }
+    bar.style.borderColor = sevIdx>=3 ? '#7a1c26' : sevIdx===2 ? '#5c3212' : '#3a3212';
+    bar.style.background = sevIdx>=3 ? '#240a0a' : sevIdx===2 ? '#241408' : '#1f1c08';
+  }
+
+  /* ---------------- main loop ---------------- */
+  function tick(){ stepSeries(); updateHeat(); updateKPIs(); }
+
+  initTabs();
+  buildHeatGrid();
+  renderHistory();
+  buildReplayUI();
+  initReplay();
+  initExplorer();
+  updateHeat();
+  updateKPIs();
+  updateClock();
+  setInterval(updateClock, 1000);
+  setInterval(tick, 2200);
+})();
+
+</script>
+</body>
+</html>
